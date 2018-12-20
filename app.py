@@ -13,7 +13,7 @@ from sqlalchemy import MetaData
 from sqlalchemy import create_engine
 from sqlalchemy.orm import *
 
-HOST = "172.30.122.200"
+HOST = "172.30.113.253"
 
 # 创建flask_sqlalchemy基于sqlite的实例db
 app = Flask(__name__)
@@ -58,7 +58,17 @@ class trainerInfoTable(userdb.Model):
     trainer_email = userdb.Column(userdb.String)
 
     def __repr__(self):
-        return 'table name is ' + self.username
+        return 'table name is ' + self.trainer_name
+
+
+# 建立model类，用于创建table/model
+class articleInfoTable(userdb.Model):
+    __tablename__ = 'article'
+    name = userdb.Column(userdb.String, primary_key=True)
+    content = userdb.Column(userdb.String)
+
+    def __repr__(self):
+        return 'table name is ' + self.name
 
 
 @app.route('/')
@@ -98,6 +108,60 @@ def show_video():
         pass
 
 
+# show trainer
+@app.route('/userTrainer', methods=['POST'])
+def show_trainer():
+    username = request.form['username']
+    print('userName')
+    if username is None:
+        pass
+    else:
+        obj = userInfoTable.query.filter_by(username=username).first()
+        rootdir = obj.pictureUrl
+        phonenum = obj.user_phone_number
+        list = os.listdir(rootdir)  # 列出文件夹下所有的目录与文件
+        info_dict = {"trainer_info": []}
+        # 遍历教练信息
+        for i in range(0, len(list)):
+            picture_file_name = list[i]
+            # 图片文件
+            path = os.path.join(rootdir, picture_file_name)
+            if os.path.isfile(path):
+                # with open(path, 'rb') as f:
+                #     image_byte = base64.b64encode(f.read())
+                #     trainer_image_string = image_byte.decode('ascii')  # byte类型转换为str
+                trainer_name = picture_file_name.split(".")[0]
+                obj = trainerInfoTable.query.filter_by(trainer_name=trainer_name).first()
+                trainer_intro = obj.trainer_intro
+                trainer_tel = obj.trainer_tel
+                trainer_email = obj.trainer_email
+                print("trainer_name:", trainer_name)
+                trainer_image_url = "http://" + HOST + ":8080/userPicture?filename=" + phonenum + "/" + picture_file_name
+                data = {"trainer_image_url": trainer_image_url, "trainer_name": trainer_name,
+                        "trainer_intro": trainer_intro, "trainer_tel": trainer_tel,
+                        "trainer_email": trainer_email}
+                info_dict.get("trainer_info").append(data)
+        jsoninfo = json.dumps(info_dict)
+        print("jsoninfo:", jsoninfo)
+        return jsoninfo
+
+
+# show trainer
+@app.route('/articles', methods=['POST'])
+def show_articles():
+    articles = articleInfoTable.query.all()
+    info_dict = {"article_info": []}
+    # 遍历教练信息
+    for article in articles:
+        article_name = article.name
+        article_content = article.content
+        data = {"article_name": article_name, "article_content": article_content}
+        info_dict.get("article_info").append(data)
+    jsoninfo = json.dumps(info_dict)
+    print("jsoninfo:", jsoninfo)
+    return jsoninfo
+
+
 # 用户登录 返回码为0无注册 返回码为1密码错误
 @app.route('/user', methods=['POST'])
 def check_user():
@@ -124,13 +188,13 @@ def check_user():
                     trainer_name = picture_file_name.split(".")[0]
                     obj = trainerInfoTable.query.filter_by(trainer_name=trainer_name).first()
                     trainer_intro = obj.trainer_intro
-                    trainer_tel= obj.trainer_tel
+                    trainer_tel = obj.trainer_tel
                     trainer_email = obj.trainer_email
                     print("trainer_name:", trainer_name)
                     trainer_image_url = "http://" + HOST + ":8080/userPicture?filename=" + phonenum + "/" + picture_file_name
                     data = {"trainer_image_url": trainer_image_url, "trainer_name": trainer_name,
-                            "trainer_intro": trainer_intro,"trainer_tel":trainer_tel,
-                            "trainer_email":trainer_email}
+                            "trainer_intro": trainer_intro, "trainer_tel": trainer_tel,
+                            "trainer_email": trainer_email}
                     info_dict.get("trainer_info").append(data)
 
             # 遍历视频信息
@@ -175,4 +239,4 @@ def register():
 
 if __name__ == '__main__':
     userdb.create_all()  # 用来创建table，一般在初始化的时候调用
-    app.run(host="127.0.0.1", port=8080, threaded=True)
+    app.run(host=HOST, port=8080, threaded=True)
